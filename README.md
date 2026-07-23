@@ -1,36 +1,220 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Devendra Choudhary — Services Website
 
-## Getting Started
+A statically rendered marketing site whose single job is to turn a visiting
+business owner into a booked discovery call.
 
-First, run the development server:
+Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Motion · Web3Forms.
+No backend, no database, no CMS — all content lives in typed files under
+`src/content/`.
+
+---
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # then fill in the values
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Both are `NEXT_PUBLIC_` and therefore visible in the browser. Neither is a
+secret; the Web3Forms access key is designed to be public.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Optional on Vercel | Canonical origin, no trailing slash. Drives metadata, canonical links, `sitemap.xml`, `robots.txt`, and JSON-LD. When unset, [`src/lib/site.ts`](src/lib/site.ts) falls back to Vercel's `VERCEL_PROJECT_PRODUCTION_URL`, then to the placeholder constant. Set it explicitly once a custom domain exists. |
+| `NEXT_PUBLIC_WEB3FORMS_KEY` | For the contact form | Free key from [web3forms.com](https://web3forms.com). Without it the form still validates but tells the visitor to email instead of failing silently. |
 
-## Learn More
+### Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (Next 16 no longer lints during `build`) |
+| `npm run check` | typecheck → lint → build, i.e. the full gate |
+| `npm run og` | Regenerate `public/og-image.png` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Editing content
 
-## Deploy on Vercel
+Nothing user-facing is hard-coded in components. Everything lives in
+`src/content/`, fully typed — if you break a shape, `npm run typecheck` says so.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| File | Controls |
+| --- | --- |
+| [`site.ts`](src/content/site.ts) | Name, email, booking URL, social links, hero copy, trust strip, the 3-step process, About section, footer |
+| [`services.ts`](src/content/services.ts) | The three service cards and their "starting at" prices |
+| [`caseStudies.ts`](src/content/caseStudies.ts) | Case studies — also generates `/work/[slug]` pages |
+| [`faqs.ts`](src/content/faqs.ts) | FAQ accordion |
+| [`testimonials.ts`](src/content/testimonials.ts) | Testimonials (currently empty — see below) |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Booking link
+
+`site.bookingUrl` in `src/content/site.ts` is a **placeholder** pointing at a
+Cal.com URL that does not exist yet. Every "Book a call" button on the site uses
+it, so set this to your real scheduling link before going live.
+
+### Testimonials
+
+`testimonials` is an empty array, and the section renders **nothing at all**
+while it stays that way — no heading, no placeholder quotes. Add an entry and
+the section appears automatically:
+
+```ts
+export const testimonials: Testimonial[] = [
+  {
+    quote: "…",
+    name: "Jane Okafor",
+    role: "Operations Director",
+    company: "Northbeam Logistics",
+  },
+];
+```
+
+Only add one when you have permission to publish the person's real name and
+role. An anonymous testimonial is worth less than no testimonial.
+
+### Adding a case study
+
+1. Append an entry to `caseStudies` in [`src/content/caseStudies.ts`](src/content/caseStudies.ts).
+   The `slug` becomes the URL: `/work/your-slug`.
+2. Set `confidential: true` for NDA work. The UI then hides any live/repo link
+   and shows a "Client project — details anonymised" note instead. Describe the
+   *system* and the engineering, never the client.
+3. Drop images into `public/work/` matching the `src`, `width`, and `height` you
+   declared. Every image needs real `alt` text.
+4. That's it — `generateStaticParams` picks it up, and the page, its metadata,
+   its `Article` JSON-LD, and the sitemap entry are all generated.
+
+Write the `sections` as prose. These pages carry most of the site's SEO weight,
+so they should read as real articles rather than bullet dumps.
+
+---
+
+## Images
+
+Two image slots are **not yet filled**, and the site is built to ship without
+them:
+
+| Path | Used by | Fallback while missing |
+| --- | --- | --- |
+| `public/devendra.jpg` | Hero + About portrait | A "DC." monogram card at identical dimensions |
+| `public/work/*.png` | Case study covers and screenshots | An empty browser frame at the declared aspect ratio |
+
+Both fallbacks reserve exactly the space the real image will occupy, so adding
+the files causes no layout shift and needs no code change. The check happens at
+build time in [`src/lib/assets.ts`](src/lib/assets.ts).
+
+A portrait around 960×1120 (4:5) is ideal. Screenshots should match the `width`
+and `height` declared in the content file.
+
+### OG image
+
+`public/og-image.png` (1200×630) is generated by
+[`scripts/generate-og-image.mjs`](scripts/generate-og-image.mjs) from an inline
+SVG via sharp. Edit the script and run `npm run og`. The output is committed, so
+it does not run during a normal build.
+
+---
+
+## Design system
+
+Tokens live in the `@theme` block of [`src/app/globals.css`](src/app/globals.css).
+
+One accent, hairline 1px borders instead of shadows, generous whitespace, dark
+`--ink` bands to break up the page. Headings in Sora, body in IBM Plex Sans,
+labels and prices in IBM Plex Mono — all self-hosted through `next/font`, so
+there are no external font requests.
+
+**One deliberate deviation from the brief's palette.** The brief assigns
+`--accent` (`#0D9488`) to CTAs and links. Measured against `--ground`, that teal
+reaches only **3.59:1** as text, and white on it as a button reaches **3.74:1** —
+both below the 4.5:1 WCAG AA threshold, which would have cost the Accessibility
+score. So accent usage is split by contrast requirement:
+
+- `--accent` `#0D9488` — decorative marks only (rules, dots, focus rings) where
+  the 3:1 non-text bar applies, plus dark bands where it measures 5.0:1.
+- `--accent-deep` `#0F5F58` — every accent-coloured **text** and the CTA button
+  fill. 7.19:1 on `--ground`, 7.51:1 with white on top.
+- `--accent-deeper` `#0A4640` — button hover.
+
+The brand teal is still what you see; it just stopped carrying text.
+
+Motion is limited to a 400ms fade-and-rise on scroll entry, once per element,
+via [`Reveal.tsx`](src/components/Reveal.tsx). `prefers-reduced-motion` skips it
+entirely rather than shortening it.
+
+---
+
+## Project structure
+
+```
+src/
+├── app/
+│   ├── layout.tsx          root layout, fonts, global metadata
+│   ├── page.tsx            home — composes the sections in order
+│   ├── not-found.tsx       branded 404
+│   ├── icon.svg            "DC." favicon
+│   ├── sitemap.ts          generated sitemap.xml
+│   ├── robots.ts           generated robots.txt
+│   └── work/[slug]/        statically generated case studies
+├── components/
+│   ├── sections/           the home page, one file per section
+│   ├── ui.tsx              ButtonLink, Section, Card, Eyebrow, ArrowLink
+│   ├── ContactForm.tsx     Web3Forms, client-side
+│   ├── Portrait.tsx        photo with monogram fallback
+│   ├── ScreenshotFrame.tsx screenshot with empty-frame fallback
+│   ├── Reveal.tsx          scroll-entry animation
+│   └── JsonLd.tsx          structured data <script>
+├── content/                all copy — see "Editing content"
+└── lib/
+    ├── site.ts             site URL + env
+    ├── assets.ts           build-time /public existence check
+    └── jsonld.ts           schema.org builders
+```
+
+---
+
+## SEO
+
+- Full Metadata API: title template, per-page descriptions, canonical URLs,
+  Open Graph and Twitter cards on every route.
+- JSON-LD: `Person` + `ProfessionalService` + `FAQPage` on the home page,
+  `Article` + `BreadcrumbList` on each case study.
+- Generated `sitemap.xml` and `robots.txt`.
+- One `h1` per page, real heading hierarchy, descriptive alt text.
+- Every route prerenders to static HTML.
+
+FAQ answers stay in the DOM while collapsed (toggled via the `hidden`
+attribute), so crawlers read them even though visitors have to click.
+
+---
+
+## Deploying to Vercel
+
+1. Push to GitHub.
+2. Import the repo at [vercel.com/new](https://vercel.com/new). The framework
+   preset is detected; there are no build settings to change.
+3. Add `NEXT_PUBLIC_WEB3FORMS_KEY` under **Settings → Environment Variables**,
+   or the contact form will tell visitors to email instead.
+4. Deploy.
+
+**No domain needed.** With `NEXT_PUBLIC_SITE_URL` unset, the site reads Vercel's
+`VERCEL_PROJECT_PRODUCTION_URL`, so canonical tags, the sitemap, and OG image
+URLs all resolve against the project's `*.vercel.app` address — which means link
+previews work correctly when the URL is pasted into a chat or a proposal.
+
+That requires **Settings → Environment Variables → Enable access to System
+Environment Variables**, which is on by default.
+
+When a custom domain is added later, set `NEXT_PUBLIC_SITE_URL` to it explicitly
+and redeploy. Everything absolute on the site is built from that one value.
+
+The site is fully static and will also run on any host that serves a Next.js
+build.

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DC">
+  <defs>
+    <!--
+      SVG has no conic-gradient, so the header's rotating conic mark is
+      approximated with a diagonal linear ramp through the same three brand
+      stops: violet -> cyan -> magenta.
+    -->
+    <linearGradient id="brand" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B5CF6" />
+      <stop offset="0.52" stop-color="#22D3EE" />
+      <stop offset="1" stop-color="#EC4899" />
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="15" fill="url(#brand)" />
+
+  <!--
+    No trailing period, and heavier than the wordmark: at the 16px a browser
+    tab actually renders this at, the dot is indistinguishable from
+    compression noise and thin strokes disappear entirely.
+  -->
+  <text
+    x="32"
+    y="34"
+    text-anchor="middle"
+    dominant-baseline="central"
+    fill="#FFFFFF"
+    font-family="Segoe UI, Helvetica Neue, Arial, sans-serif"
+    font-size="30"
+    font-weight="800"
+    letter-spacing="-1.5"
+  >DC</text>
+</svg>
